@@ -1108,7 +1108,7 @@ void vAddNewTaskToCurrentReadyList(TaskHandle_t pxNewTaskHandle)
 		#if ( configUSE_TRACE_FACILITY == 1 )
 		{
 			/* Add a counter into the TCB for tracing only. */
-			pxNewTCB->uxTCBNumber = uxTaskNumber;
+			pxNewTCB->uxTCBNumber = uxTaskNumber[ uxPsrId ];
 		}
 		#endif /* configUSE_TRACE_FACILITY */
 		traceTASK_CREATE( pxNewTCB );
@@ -2476,31 +2476,32 @@ UBaseType_t uxPsrId = uxPortGetProcessorId();
 	UBaseType_t uxTaskGetSystemState( TaskStatus_t * const pxTaskStatusArray, const UBaseType_t uxArraySize, uint32_t * const pulTotalRunTime )
 	{
 	UBaseType_t uxTask = 0, uxQueue = configMAX_PRIORITIES;
+	UBaseType_t uxPsrId = uxPortGetProcessorId();
 
 		vTaskSuspendAll();
 		{
 			/* Is there a space in the array for each task in the system? */
-			if( uxArraySize >= uxCurrentNumberOfTasks )
+			if( uxArraySize >= uxCurrentNumberOfTasks[uxPsrId] )
 			{
 				/* Fill in an TaskStatus_t structure with information on each
 				task in the Ready state. */
 				do
 				{
 					uxQueue--;
-					uxTask += prvListTasksWithinSingleList( &( pxTaskStatusArray[ uxTask ] ), &( pxReadyTasksLists[ uxQueue ] ), eReady );
+					uxTask += prvListTasksWithinSingleList( &( pxTaskStatusArray[ uxTask ] ), ( pxReadyTasksLists[ uxQueue ] ), eReady );
 
 				} while( uxQueue > ( UBaseType_t ) tskIDLE_PRIORITY ); /*lint !e961 MISRA exception as the casts are only redundant for some ports. */
 
 				/* Fill in an TaskStatus_t structure with information on each
 				task in the Blocked state. */
-				uxTask += prvListTasksWithinSingleList( &( pxTaskStatusArray[ uxTask ] ), ( List_t * ) pxDelayedTaskList, eBlocked );
-				uxTask += prvListTasksWithinSingleList( &( pxTaskStatusArray[ uxTask ] ), ( List_t * ) pxOverflowDelayedTaskList, eBlocked );
+				uxTask += prvListTasksWithinSingleList( &( pxTaskStatusArray[ uxTask ] ), pxDelayedTaskList[uxPsrId], eBlocked );
+				uxTask += prvListTasksWithinSingleList( &( pxTaskStatusArray[ uxTask ] ), pxOverflowDelayedTaskList[uxPsrId], eBlocked );
 
 				#if( INCLUDE_vTaskDelete == 1 )
 				{
 					/* Fill in an TaskStatus_t structure with information on
 					each task that has been deleted but not yet cleaned up. */
-					uxTask += prvListTasksWithinSingleList( &( pxTaskStatusArray[ uxTask ] ), &xTasksWaitingTermination, eDeleted );
+					uxTask += prvListTasksWithinSingleList( &( pxTaskStatusArray[ uxTask ] ), &xTasksWaitingTermination[ uxPsrId ], eDeleted );
 				}
 				#endif
 
@@ -2508,7 +2509,7 @@ UBaseType_t uxPsrId = uxPortGetProcessorId();
 				{
 					/* Fill in an TaskStatus_t structure with information on
 					each task in the Suspended state. */
-					uxTask += prvListTasksWithinSingleList( &( pxTaskStatusArray[ uxTask ] ), &xSuspendedTaskList, eSuspended );
+					uxTask += prvListTasksWithinSingleList( &( pxTaskStatusArray[ uxTask ] ), &xSuspendedTaskList[ uxPsrId ], eSuspended );
 				}
 				#endif
 
@@ -3623,7 +3624,7 @@ static void prvCheckTasksWaitingTermination( void )
 		state is just set to whatever is passed in. */
 		if( eState != eInvalid )
 		{
-			if( pxTCB == pxCurrentTCB )
+			if( pxTCB == pxCurrentTCB[uxPsrId] )
 			{
 				pxTaskStatus->eCurrentState = eRunning;
 			}
@@ -4289,7 +4290,7 @@ UBaseType_t uxPsrId = uxPortGetProcessorId();
 
 		/* Take a snapshot of the number of tasks in case it changes while this
 		function is executing. */
-		uxArraySize = uxCurrentNumberOfTasks;
+		uxArraySize = uxCurrentNumberOfTasks[uxPsrId];
 
 		/* Allocate an array index for each task.  NOTE!  if
 		configSUPPORT_DYNAMIC_ALLOCATION is set to 0 then pvPortMalloc() will
