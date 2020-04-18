@@ -423,6 +423,8 @@ void spi_send_data_normal_dma(dmac_channel_number_t channel_num, spi_device_num_
                               spi_chip_select_t chip_select,
                               const void *tx_buff, size_t tx_len, spi_transfer_width_t spi_transfer_width);
 
+void spi_send_data_normal(spi_device_num_t spi_num, spi_chip_select_t chip_select, const uint8_t *tx_buff, size_t tx_len);
+
 /**
  * @brief       Spi normal send by dma
  *
