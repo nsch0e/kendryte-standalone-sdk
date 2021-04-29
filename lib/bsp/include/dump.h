@@ -27,6 +27,8 @@ extern "C" {
 
 #define DUMP_PRINTF printk
 
+extern uintptr_t _start;
+
 static inline void
 dump_core(const char *reason, uintptr_t cause, uintptr_t epc, uintptr_t regs[32], uintptr_t fregs[32])
 {
@@ -124,10 +126,31 @@ dump_core(const char *reason, uintptr_t cause, uintptr_t epc, uintptr_t regs[32]
         for (i = 0; i < 32 / 2; i++)
         {
             DUMP_PRINTF(
+                "freg[%02d](%s) = 0x%016lx, freg[%02d](%s) = 0x%016lx\r\n",
+                i * 2, regf_usage[i * 2][0], fregs[i * 2],
+                i * 2 + 1, regf_usage[i * 2 + 1][0], fregs[i * 2 + 1]);
+            /* no floats working in printf so...
+            DUMP_PRINTF(
                 "freg[%02d](%s) = 0x%016lx(%f), freg[%02d](%s) = 0x%016lx(%f)\r\n",
                 i * 2, regf_usage[i * 2][0], fregs[i * 2], (float)fregs[i * 2],
                 i * 2 + 1, regf_usage[i * 2 + 1][0], fregs[i * 2 + 1], (float)fregs[i * 2 + 1]);
+                */
         }
+
+        /** experimental stack dump **/
+        DUMP_PRINTF("stack: \r\n");
+        DUMP_PRINTF("0x%016lx ", epc);
+        DUMP_PRINTF("0x%016lx ", regs[1]);
+        DUMP_PRINTF("0x%016lx ", regs[6]);
+        uintptr_t* dataPtr = (uintptr_t*)regs[2];
+        dataPtr += 2*32; //skip registers
+        for (i = 0; i < 32*10; i++){
+            if(((*dataPtr)&0xfffffffff0000000) == 0x0000000080000000)
+                DUMP_PRINTF("0x%016lx ", *dataPtr);
+            if(*dataPtr == (uintptr_t)&_start) break;
+            dataPtr++;
+        }
+        DUMP_PRINTF("\n\r");
     }
 }
 
